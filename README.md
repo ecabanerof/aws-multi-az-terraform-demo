@@ -3,25 +3,25 @@
 This repository contains a demonstration of AWS multi-availability zone infrastructure deployed with Terraform and configured with Ansible. All data, configurations, and examples are **fictional** and designed for educational/portfolio purposes.
 
 
-## 🎯 Purpose
+##  Purpose
 
 - **Portfolio demonstration** of AWS infrastructure skills
 - **Educational template** for learning multi-AZ deployments
 - **Showcase** of Terraform, Ansible, and AWS best practices
 - **Template** for future infrastructure projects
 
-## 🏗️ Architecture
+##  Architecture
 
 ```
                     Internet Gateway
                            │
                     ┌──────┴──────┐
-                    │  Elastic IP  │
+                    │  Elastic IP │
                     └──────┬──────┘
                            │
                ┌───────────┴───────────┐
                │     NAT Gateway       │
-               │   (172.20.1.0/28)    │
+               │   (172.20.1.0/28)     │
                └───────────┬───────────┘
                            │
     ┌──────────────────────┴──────────────────────┐
@@ -30,43 +30,43 @@ This repository contains a demonstration of AWS multi-availability zone infrastr
     ├─────────────── PUBLIC ZONE ─────────────────┤
     │  VPN Subnet (172.20.5.0/28)                 │
     │  ┌─────────────────────────────────────────┐│
-    │  │  VPN Server (172.20.5.10)           ││   ← Public Access
+    │  │  VPN Server (172.20.5.10)               ││   ← Public Access
     │  │    • OpenVPN (Port 1194)                ││
     │  │    • Gateway to Private Network         ││
     │  └─────────────────────────────────────────┘│
     │                                             │
     ├──────────────── AZ1 ZONE ───────────────────┤
-    │  Private Subnet (172.20.10.0/24)           │
+    │  Private Subnet (172.20.10.0/24)            │
     │  ┌─────────────────────────────────────────┐│
     │  │  Monitor-11 (172.20.10.20)              ││  ← Prometheus/Grafana
     │  │  Web-11 (172.20.10.21)                  ││
     │  │  Web-12 (172.20.10.22)                  ││
-    │  │   App-Alpha-11 (172.20.10.23)           ││  ← Algorithm (Port 7000)
-    │  │   App-Beta-11 (172.20.10.24)            ││  ← Algorithm (Port 7001)
+    │  │  App-Alpha-11 (172.20.10.23)            ││  ← Algorithm (Port 7000)
+    │  │  App-Beta-11 (172.20.10.24)             ││  ← Algorithm (Port 7001)
     │  │  NTP/DNS Server (172.20.10.25)          ││
     │  └─────────────────────────────────────────┘│
     │                                             │
     ├──────────────── AZ2 ZONE ───────────────────┤
     │  Private Subnet (172.20.20.0/24)            │
     │  ┌─────────────────────────────────────────┐│
-    │  │ 📊 Monitor-21 (172.20.20.20)            ││  ← Backup Monitoring
-    │  │ 🌐 Web-21 (172.20.20.21)                ││
-    │  │ 🌐 Web-22 (172.20.20.22)                ││
-    │  │ ⚙️  App-Alpha-21 (172.20.20.23)         ││
-    │  │ ⚙️  App-Beta-21 (172.20.20.24)          ││
+    │  │    Monitor-21 (172.20.20.20)            ││  ← Backup Monitoring
+    │  │    Web-21 (172.20.20.21)                ││
+    │  │    Web-22 (172.20.20.22)                ││
+    │  │    App-Alpha-21 (172.20.20.23)          ││
+    │  │    App-Beta-21 (172.20.20.24)           ││
     │  └─────────────────────────────────────────┘│
     │                                             │
     ├─────────────── CONTAINER LAYER ─────────────┤
-    │  🐳 ECS Fargate Cluster                     │
+    │     ECS Fargate Cluster                     │
     │  ┌─────────────────────────────────────────┐│
-    │  │ ⚖️  Application Load Balancer           ││  ← Internal ALB
-    │  │ 📦 Demo Data Processor Tasks            ││
-    │  │ 📦 S3 Sync Tasks                        ││
+    │  │     Application Load Balancer           ││  ← Internal ALB
+    │  │    Demo Data Processor Tasks            ││
+    │  │    S3 Sync Tasks                        ││
     │  └─────────────────────────────────────────┘│
     │                                             │
     └─────────────────────────────────────────────┘
                            │
-                    ┌──────┴──────┐
+                    ┌──────┴─────────┐
                     │    S3 Bucket   │  ← Demo Data Storage
                     │  Lifecycle     │    & Automated Cleanup
                     │  Encryption    │
@@ -271,11 +271,15 @@ This is a demo/template project. Feel free to:
 - Use as a learning reference
 - Adapt for your portfolio
 
+## Credits
+Created as a @ecabanero portfolio demonstration of AWS infrastructure skills.
+
 ## License
 
-This demo project is provided as-is for educational purposes.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Credits
+```
+MIT License
 
-
-Created as a portfolio demonstration of AWS infrastructure skills.
+Copyright (c) 2025 Emilio Cabañero
+```
