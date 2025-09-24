@@ -1,0 +1,198 @@
+---
+# Demo OpenVPN Server Deployment
+- name: Deploy OpenVPN Server - Demo Infrastructure
+  hosts: openvpn_servers
+  become: yes
+  vars:
+    # Demo VPN configuration
+    vpn_subnet: "{{ openvpn.server_network }}/24"
+    vpn_network: "{{ openvpn.server_network }}"
+    vpn_netmask: "{{ openvpn.server_netmask }}"
+    demo_users: "{{ vpn_demo_users | default(['alice', 'bob', 'charlie', 'diana']) }}"
+    server_name: "demo-vpn-server"
+    
+  tasks:
+    - name: Update system packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+        
+    - name: Install OpenVPN and Easy-RSA
+      apt:
+        name:
+          - openvpn
+          - easy-rsa
+          - iptables-persistent
+        state: present
+        
+    - name: Create OpenVPN directory structure
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /etc/openvpn
+        - /etc/openvpn/easy-rsa
+        - /etc/openvpn/ccd
+        - /var/log/openvpn
+        
+    - name: Copy Easy-RSA files
+      shell: cp -r /usr/share/easy-rsa/* /etc/openvpn/easy-rsa/
+      args:
+        creates: /etc/openvpn/easy-rsa/easyrsa
+      
+    - name: Create Easy-RSA vars file
+      copy:
+        dest: /etc/openvpn/easy-rsa/vars
+        content: |
+          set_var EASYRSA_REQ_COUNTRY    "US"
+          set_var EASYRSA_REQ_PROVINCE   "Demo State"
+          set_var EASYRSA_REQ_CITY       "Demo City"
+          set_var EASYRSA_REQ_ORG        "TechCorp Demo"
+          set_var EASYRSA_REQ_EMAIL      "admin@demo.example.com"
+          set_var EASYRSA_REQ_OU         "Demo IT Department"
+          set_var EASYRSA_KEY_SIZE       2048
+          set_var EASYRSA_ALGO           rsa
+          set_var EASYRSA_CA_EXPIRE      3650
+          set_var EASYRSA_CERT_EXPIRE    365
+        mode: '0644'
+        
+    - name: Initialize PKI
+      shell: |
+        cd /etc/openvpn/easy-rsa
+        ./easyrsa init-pki
+        echo 'Demo VPN CA' | ./easyrsa build-ca nopass
+        ./easyrsa gen-req {{ server_name }} nopass
+        echo 'yes' | ./easyrsa sign-req server {{ server_name }}
+        ./easyrsa gen-dh
+        openvpn --genkey secret ta.key
+      args:
+        creates: /etc/openvpn/easy-rsa/pki/ca.crt
+        
+    - name: Copy certificates to OpenVPN directory
+      shell: |
+        cd /etc/openvpn/easy-rsa
+        cp pki/ca.crt /etc/openvpn/
+        cp pki/issued/{{ server_name }}.crt /etc/openvpn/
+        cp pki/private/{{ server_name }}.key /etc/openvpn/
+        cp pki/dh.pem /etc/openvpn/
+        cp ta.key /etc/openvpn/
+        
+    - name: Create OpenVPN server configuration
+      copy:
+        dest: /etc/openvpn/server.conf
+        content: |
+          port {{ openvpn.port }}
+          proto {{ openvpn.protocol }}
+          dev tun
+          ca ca.crt
+          cert {{ server_name }}.crt
+          key {{ server_name }}.key
+          dh dh.pem
+          topology subnet
+
+          # Demo VPN network
+          server {{ openvpn.server_network }} {{ openvpn.server_netmask }}
+          ifconfig-pool-persist /var/log/openvpn/ipp.txt
+
+          # Demo network routes
+          {% for route in openvpn.push_routes %}
+          push "route {{ route.split(' ')[0] }} {{ route.split(' ')[1] }}"
+          {% endfor %}
+
+          client-config-dir ccd
+          {% for dns in openvpn.dns_servers %}
+          push "dhcp-option DNS {{ dns }}"
+          {% endfor %}
+          
+          keepalive 10 120
+          tls-auth ta.key 0
+          key-direction 0
+          data-ciphers AES-256-GCM:AES-128-GCM:AES-128-CBC
+          data-ciphers-fallback AES-128-CBC
+          auth SHA256
+          persist-key
+          persist-tun
+          duplicate-cn
+          status /var/log/openvpn/openvpn-status.log
+          verb 3
+          explicit-exit-notify 1
+        mode: '0644'
+        
+    - name: Create demo VPN user certificates
+      shell: |
+        cd /etc/openvpn/easy-rsa
+        ./easyrsa gen-req {{ item }} nopass
+        echo 'yes' | ./easyrsa sign-req client {{ item }}
+      loop: "{{ demo_users }}"
+      args:
+        creates: "/etc/openvpn/easy-rsa/pki/issued/{{ item }}.crt"
+        
+    - name: Generate demo client configuration files
+      shell: |
+        cd /etc/openvpn/easy-rsa
+        cat > /root/{{ item }}.ovpn << 'EOF'
+        client
+        dev tun
+        proto {{ openvpn.protocol }}
+        remote {{ ansible_default_ipv4.address }} {{ openvpn.port }}
+        resolv-retry infinite
+        nobind
+        persist-key
+        persist-tun
+        ca [inline]
+        cert [inline]
+        key [inline]
+        tls-auth [inline] 1
+        data-ciphers AES-256-GCM:AES-128-GCM:AES-128-CBC
+        auth SHA256
+        key-direction 1
+        verb 3
+        
+        <ca>
+        $(cat /etc/openvpn/ca.crt)
+        </ca>
+        
+        <cert>
+        $(cat pki/issued/{{ item }}.crt)
+        </cert>
+        
+        <key>
+        $(cat pki/private/{{ item }}.key)
+        </key>
+        
+        <tls-auth>
+        $(cat /etc/openvpn/ta.key)
+        </tls-auth>
+        EOF
+      loop: "{{ demo_users }}"
+      
+    - name: Configure firewall for demo
+      shell: |
+        iptables -t nat -A POSTROUTING -s {{ openvpn.server_network }}/24 -o $(ip route | grep default | awk '{print $5}') -j MASQUERADE
+        iptables -A INPUT -p {{ openvpn.protocol }} --dport {{ openvpn.port }} -j ACCEPT
+        iptables -A FORWARD -s {{ openvpn.server_network }}/24 -j ACCEPT
+        iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+        netfilter-persistent save
+        
+    - name: Enable IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        state: present
+        reload: yes
+        
+    - name: Start and enable OpenVPN service
+      systemd:
+        name: openvpn@server
+        state: started
+        enabled: yes
+        
+    - name: Display VPN server information
+      debug:
+        msg: |
+          Demo OpenVPN Server deployed successfully!
+          Server IP: {{ ansible_default_ipv4.address }}
+          Port: {{ openvpn.port }}/{{ openvpn.protocol }}
+          Client configs: /root/*.ovpn
+          Demo users: {{ demo_users | join(', ') }}

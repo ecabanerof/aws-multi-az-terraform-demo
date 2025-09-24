@@ -1,0 +1,120 @@
+---
+# Demo Infrastructure Global Variables
+
+# Environment settings
+environment: demo
+company_name: "TechCorp-Demo"
+project_name: "AWS-Infrastructure-Demo"
+
+# Network configuration (matches terraform)
+vpc_cidr: "172.16.0.0/16"
+private_az1_cidr: "172.16.10.0/24"
+private_az2_cidr: "172.16.20.0/24"
+vpn_subnet_cidr: "172.16.5.0/28"
+
+# Demo users and security
+demo_users:
+  - username: "alice"
+    fullname: "Alice Demo"
+    role: "admin"
+    shell: "/bin/bash"
+  - username: "bob"
+    fullname: "Bob Demo"
+    role: "developer"
+    shell: "/bin/bash"
+  - username: "charlie"
+    fullname: "Charlie Demo"
+    role: "analyst"
+    shell: "/bin/bash"
+  - username: "diana"
+    fullname: "Diana Demo"
+    role: "manager"
+    shell: "/bin/bash"
+
+# OpenVPN configuration
+openvpn:
+  port: 1194
+  protocol: "udp"
+  server_network: "10.8.0.0"
+  server_netmask: "255.255.255.0"
+  push_routes:
+    - "172.16.10.0 255.255.255.0"  # AZ1 subnet
+    - "172.16.20.0 255.255.255.0"  # AZ2 subnet
+  dns_servers:
+    - "8.8.8.8"
+    - "8.8.4.4"
+  
+# Demo application configuration
+demo_applications:
+  web_app:
+    name: "demo-webapp"
+    port: 80
+    health_check: "/"
+    version: "2.1.0"
+  
+  monitoring:
+    grafana_port: 3000
+    prometheus_port: 9090
+    node_exporter_port: 9100
+  
+  data_processor:
+    port: 8080
+    log_level: "info"
+    batch_size: 100
+
+# Security hardening
+security:
+  enable_firewall: true
+  ssh_port: 22
+  allowed_ssh_users: ["ubuntu", "alice", "bob"]
+  fail2ban_enabled: true
+  automatic_updates: true
+  
+# Monitoring and alerting
+monitoring:
+  enable_prometheus: true
+  enable_grafana: true
+  enable_node_exporter: true
+  retention_days: 7
+  
+# Demo data processing (similar to RINEX but fictional)
+data_processing:
+  processor_image: "nginx:1.24-alpine"
+  processing_interval: 300  # 5 minutes
+  sync_hour: 2  # 02:00 AM
+  retention_days: 7
+  s3_sync: true
+  
+# Load balancer configuration
+load_balancer:
+  health_check_path: "/health"
+  health_check_interval: 30
+  healthy_threshold: 2
+  unhealthy_threshold: 3
+  
+# Common packages to install
+common_packages:
+  - "htop"
+  - "vim"
+  - "curl"
+  - "wget"
+  - "git"
+  - "tree"
+  - "net-tools"
+  - "tcpdump"
+  - "iotop"
+  - "docker.io"
+
+# Time synchronization
+ntp:
+  servers:
+    - "0.pool.ntp.org"
+    - "1.pool.ntp.org"
+    - "2.pool.ntp.org"
+  timezone: "UTC"
+
+# Logging
+logging:
+  syslog_server: null  # Set if centralized logging needed
+  log_retention_days: 30
+  enable_logrotate: true
